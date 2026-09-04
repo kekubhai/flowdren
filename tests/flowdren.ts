@@ -23,6 +23,18 @@ describe("flowdren", () => {
   let vault: anchor.web3.PublicKey;
   let vaultUsdcTokenAccount: anchor.web3.PublicKey;
 
+  // The validator's clock can sit ahead of this machine's clock, and create_stream
+  // requires start_timestamp >= Clock::unix_timestamp. Derive start times from the
+  // chain's block time rather than Date.now() so the constraint holds.
+  const chainTime = async (): Promise<number> => {
+    const slot = await provider.connection.getSlot();
+    const blockTime = await provider.connection.getBlockTime(slot);
+    if (blockTime === null) {
+      throw new Error(`could not fetch block time for slot ${slot}`);
+    }
+    return blockTime;
+  };
+
   before(async () => {
     usdcMint = await createMint(
       provider.connection,
@@ -124,7 +136,7 @@ describe("flowdren", () => {
       program.programId,
     );
 
-    const now = Math.floor(Date.now() / 1000);
+    const now = await chainTime();
     const startTimestamp = new anchor.BN(now + 10);
     const endTimestamp = new anchor.BN(now + 20);
     const ratePerSecond = new anchor.BN(1_000_000);
@@ -165,9 +177,9 @@ describe("flowdren", () => {
       program.programId,
     );
 
-    const now = Math.floor(Date.now() / 1000);
-    const startTimestamp = new anchor.BN(now);
-    const endTimestamp = new anchor.BN(now + 20);
+    const now = await chainTime();
+    const startTimestamp = new anchor.BN(now + 2);
+    const endTimestamp = new anchor.BN(now + 22);
     const ratePerSecond = new anchor.BN(1_000_000);
 
     await program.methods
@@ -182,7 +194,7 @@ describe("flowdren", () => {
       })
       .rpc();
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 6000));
 
     await program.methods
       .withdrawFromStream()
@@ -190,7 +202,6 @@ describe("flowdren", () => {
         recipient: recipient.publicKey,
         stream,
         vault,
-        authority: authority.publicKey,
         recipientUsdcTokenAccount,
         usdcTokenAccount: vaultUsdcTokenAccount,
         tokenProgram: TOKEN_PROGRAM_ID,
@@ -219,9 +230,9 @@ describe("flowdren", () => {
       program.programId,
     );
 
-    const now = Math.floor(Date.now() / 1000);
-    const startTimestamp = new anchor.BN(now);
-    const endTimestamp = new anchor.BN(now + 5);
+    const now = await chainTime();
+    const startTimestamp = new anchor.BN(now + 2);
+    const endTimestamp = new anchor.BN(now + 7);
     const ratePerSecond = new anchor.BN(1_000_000);
 
     await program.methods
@@ -236,7 +247,7 @@ describe("flowdren", () => {
       })
       .rpc();
 
-    await new Promise(resolve => setTimeout(resolve, 6000));
+    await new Promise(resolve => setTimeout(resolve, 10000));
 
     await program.methods
       .withdrawFromStream()
@@ -244,7 +255,6 @@ describe("flowdren", () => {
         recipient: recipient.publicKey,
         stream,
         vault,
-        authority: authority.publicKey,
         recipientUsdcTokenAccount,
         usdcTokenAccount: vaultUsdcTokenAccount,
         tokenProgram: TOKEN_PROGRAM_ID,
@@ -272,9 +282,9 @@ describe("flowdren", () => {
       program.programId,
     );
 
-    const now = Math.floor(Date.now() / 1000);
-    const startTimestamp = new anchor.BN(now);
-    const endTimestamp = new anchor.BN(now + 20);
+    const now = await chainTime();
+    const startTimestamp = new anchor.BN(now + 2);
+    const endTimestamp = new anchor.BN(now + 22);
     const ratePerSecond = new anchor.BN(1_000_000);
 
     await program.methods
@@ -322,7 +332,7 @@ describe("flowdren", () => {
       program.programId,
     );
 
-    const now = Math.floor(Date.now() / 1000);
+    const now = await chainTime();
     const startTimestamp = new anchor.BN(now + 10);
     const endTimestamp = new anchor.BN(now + 20);
     const ratePerSecond = new anchor.BN(1_000_000);

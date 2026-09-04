@@ -219,6 +219,7 @@ pub mod flowdren {
 
         Ok(())
     }
+}
 
 #[derive(Accounts)]
 pub struct InitializeVault<'info> {
