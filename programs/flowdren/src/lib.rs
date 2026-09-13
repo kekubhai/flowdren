@@ -98,8 +98,8 @@ pub mod flowdren {
     }
 
     pub fn withdraw_from_stream(ctx: Context<WithdrawFromStream>) -> Result<()> {
-        let stream = &mut ctx.accounts.stream;
         let clock = Clock::get()?;
+        let stream = &ctx.accounts.stream;
 
         require!(!stream.paused, FlowdrenError::StreamPaused);
         require!(
@@ -136,8 +136,25 @@ pub mod flowdren {
 
         require!(withdrawable > 0, FlowdrenError::NothingToWithdraw);
 
-        token::transfer(ctx.accounts.transfer_ctx(), withdrawable)?;
+        let vault_bump = ctx.accounts.vault.bump;
+        let vault_authority = ctx.accounts.vault.authority;
+        let bump_seed = [vault_bump];
+        let signer_seeds: &[&[u8]] = &[b"vault", vault_authority.as_ref(), &bump_seed];
 
+        token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.usdc_token_account.to_account_info(),
+                    to: ctx.accounts.recipient_usdc_token_account.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                },
+                &[signer_seeds],
+            ),
+            withdrawable,
+        )?;
+
+        let stream = &mut ctx.accounts.stream;
         stream.total_withdrawn = stream
             .total_withdrawn
             .checked_add(withdrawable)
@@ -354,26 +371,6 @@ pub struct WithdrawFromStream<'info> {
     )]
     pub usdc_token_account: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
-}
-
-impl<'info> WithdrawFromStream<'info> {
-    fn transfer_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
-        let accounts = Transfer {
-            from: self.usdc_token_account.to_account_info(),
-            to: self.recipient_usdc_token_account.to_account_info(),
-            authority: self.vault.to_account_info(),
-        };
-        let seeds = &[
-            b"vault",
-            self.vault.authority.as_ref(),
-            &[self.vault.bump],
-        ];
-        CpiContext::new_with_signer(
-            self.token_program.to_account_info(),
-            accounts,
-            &[seeds],
-        )
-    }
 }
 
 #[derive(Accounts)]

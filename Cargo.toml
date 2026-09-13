@@ -4,6 +4,9 @@ members = [
 ]
 resolver = "2"
 
+[workspace.package]
+rust-version = "1.84.0"
+
 [profile.release]
 overflow-checks = true
 lto = "fat"
