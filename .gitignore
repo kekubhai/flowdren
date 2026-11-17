@@ -41,3 +41,8 @@ dist/
 build/
 .git/
 .anchor/
+
+# Next.js
+.next/
+*.tsbuildinfo
+!web/package-lock.json
